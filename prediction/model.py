@@ -1,6 +1,5 @@
 from mesa import Agent, Model
 from mesa.time import RandomActivation, StagedActivation
-#from mesa.space import MultiGrid
 from mesa.datacollection import DataCollector
 import numpy as np
 import random
@@ -43,18 +42,16 @@ class PredictionMarketModel(Model):
         self.bidders = OrderedDict()
         self.askers = OrderedDict()
         self.volume = 0
-        # Create probability distribution
-        mu = 0.62
-        sigma = 0.1
         # Create agents
-        print('creating agents..')
+        print('creating {} agents..'.format(self.num_agents))
         for i in range(self.num_agents):
+            # Create probability distribution
             #prob = np.random.normal(mu, sigma)
             #prob = np.random.uniform(0.01, 0.99)
             if random.randint(0,1):
-                prob = np.random.normal(0.62, 0.1)
+                prob = np.random.normal(0.83, 0.05)
             else:
-                prob = np.random.normal(0.22, 0.1)
+                prob = np.random.normal(0.53, 0.05)
             a = PredictionAgent(prob, i, self)
             self.schedule.add(a)
 
@@ -87,55 +84,6 @@ class PredictionAgent(Agent):
         self.model.bidders[self.unique_id] = self.bid
         self.model.askers[self.unique_id] = self.ask
 
-    def update_bid(self, lowest_ask, increase_bid):
-        #lowest you can bid is 0, highest you can bid is self.prob-0.01
-        min_bid = 0.00
-        max_bid = self.prob-0.01
-        #max_bid = self.prob if lowest_ask >= self.prob else lowest_ask
-        #if you're already at the maximum you're willing to pay, stay there
-        if increase_bid:
-            if self.bid+0.01 >= max_bid:
-                return max_bid
-            else:
-                #rand_bid = random.randrange(int(current_bid*100), int(max_bid*100))
-                return self.bid+0.01
-        else:
-            if self.bid-0.01 < min_bid:
-                return min_bid
-            else:
-                #rand_bid = random.randrange(int(min_bid*100), int(current_bid*100))
-                return self.bid-0.01
-
-    def update_ask(self, highest_bid, decrease_ask):
-        #highest you can ask is 1, lowest you can ask is self.prob+0.01
-        min_ask = self.prob+0.01
-        max_ask = 1.00
-        #min_ask = self.prob+0.01 if highest_bid <= self.prob else highest_bid
-        #if you're already at the minimum you're willing to sell at, stay there
-        if decrease_ask:
-            if self.ask-0.01 <= min_ask:
-                return min_ask
-            else:
-                return self.ask-0.01
-        else:
-            if self.ask+0.01 > max_ask:
-                return max_ask
-            else:
-                #rand_ask = random.randrange(int(min_ask*100), int((current_ask+0.01)*100))
-                return self.ask+0.01
-
-    def place_bid(self, bid):
-        self.bid = bid
-        self.model.bidders[self.unique_id] = self.bid
-        self.model.bidders = OrderedDict(sorted(self.model.bidders.items(), 
-                                    key=itemgetter(1), reverse=False))
-
-    def place_ask(self, ask):
-        self.ask = ask
-        self.model.askers[self.unique_id] = self.ask
-        self.model.askers = OrderedDict(sorted(self.model.askers.items(), 
-                                    key=itemgetter(1), reverse=True))
-
     def buy(self):
         if len(self.model.askers) > 0: #needs to be people selling first of all...
             lowest_price = get_lowest_ask(self.model)
@@ -163,6 +111,60 @@ class PredictionAgent(Agent):
                 #if not, lower your ask
                 new_ask = self.update_ask(highest_price, decrease_ask=True)
                 self.place_ask(new_ask)
+
+    def update_bid(self, lowest_ask, increase_bid):
+        #lowest you can bid is 0, highest you can bid is self.prob-0.01
+        min_bid = 0.00
+        max_bid = self.prob-0.01
+        #max_bid = self.prob-0.01 if lowest_ask >= self.prob else lowest_ask
+        #if you're already at the maximum you're willing to pay, stay there
+        if increase_bid:
+            if self.bid+0.01 >= max_bid:
+                return max_bid
+            else:
+                #rand_bid = random.randrange(int(self.bid*100), int((max_bid+0.01)*100))
+                #return round(rand_bid/100.,2)
+                return self.bid+0.01
+        else:
+            if self.bid-0.01 < min_bid:
+                return min_bid
+            else:
+                #rand_bid = random.randrange(int(min_bid*100), int(self.bid*100))
+                #return round(rand_bid/100.,2)
+                return self.bid-0.01
+
+    def update_ask(self, highest_bid, decrease_ask):
+        #highest you can ask is 1, lowest you can ask is self.prob+0.01
+        max_ask = 1.00
+        min_ask = self.prob+0.01
+        #min_ask = self.prob+0.01 if highest_bid <= self.prob else highest_bid
+        #if you're already at the minimum you're willing to sell at, stay there
+        if decrease_ask:
+            if self.ask-0.01 <= min_ask:
+                return min_ask
+            else:
+                #rand_ask = random.randrange(int(min_ask*100), int((self.ask)*100))
+                #return round(rand_ask/100.,2)
+                return self.ask-0.01
+        else:
+            if self.ask+0.01 > max_ask:
+                return max_ask
+            else:
+                #rand_ask = random.randrange(int(self.ask*100), int((max_ask+0.01)*100))
+                #return round(rand_ask/100.,2)
+                return self.ask+0.01
+
+    def place_bid(self, bid):
+        self.bid = bid
+        self.model.bidders[self.unique_id] = self.bid
+        self.model.bidders = OrderedDict(sorted(self.model.bidders.items(), 
+                                    key=itemgetter(1), reverse=False))
+
+    def place_ask(self, ask):
+        self.ask = ask
+        self.model.askers[self.unique_id] = self.ask
+        self.model.askers = OrderedDict(sorted(self.model.askers.items(), 
+                                    key=itemgetter(1), reverse=True))
 
     def step(self):
         #if random.randint(0, 1):
